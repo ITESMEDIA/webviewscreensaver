@@ -20,30 +20,18 @@
 //
 
 #import "WebViewScreenSaverView.h"
-#import "WVSSAddress.h"
 
 // ScreenSaverDefaults module name.
 static NSString *const kScreenSaverName = @"WebViewScreenSaver";
-// Default intervals.
-static NSTimeInterval const kOneMinute = 60.0;
 
 @interface WebViewScreenSaverView () <WVSSConfigControllerDelegate,
                                       WKUIDelegate,
                                       WKNavigationDelegate>
 
-// Timer callback that loads the next URL in the URL list.
-- (void)loadNext:(NSTimer *)timer;
-// Returns the URL for the index in the preferences.
-- (NSString *)urlForIndex:(NSInteger)index;
-// Returns the time interval in the preferences.
-- (NSTimeInterval)timeIntervalForIndex:(NSInteger)index;
-
 @end
 
 @implementation WebViewScreenSaverView {
-  NSTimer *_timer;
   WKWebView *_webView;
-  NSInteger _currentIndex;
   BOOL _isPreview;
 }
 
@@ -62,7 +50,6 @@ static NSTimeInterval const kOneMinute = 60.0;
     [self setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     [self setAutoresizesSubviews:YES];
 
-    _currentIndex = 0;
     _isPreview = isPreview;
 
     // Load state from the preferences.
@@ -73,8 +60,6 @@ static NSTimeInterval const kOneMinute = 60.0;
 }
 
 - (void)dealloc {
-  [_timer invalidate];
-  _timer = nil;
 }
 
 #pragma mark - Configure Sheet
@@ -121,15 +106,11 @@ static NSTimeInterval const kOneMinute = 60.0;
   [_webView setValue:@(YES)
               forKey:@"drawsTransparentBackground"];  // Deprecated and internal but works
 
-  if (_currentIndex < [[self selectedURLs] count]) {
-    [self loadFromStart];
-  }
+  [self loadFromStart];
 }
 
 - (void)stopAnimation {
   [super stopAnimation];
-  [_timer invalidate];
-  _timer = nil;
   [_webView removeFromSuperview];
   //  [_webView close];
   _webView = nil;
@@ -138,50 +119,13 @@ static NSTimeInterval const kOneMinute = 60.0;
 #pragma mark Loading URLs
 
 - (void)loadFromStart {
-  NSTimeInterval duration = [WVSSAddress defaultDuration];
-  NSString *url = [WVSSAddress defaultAddressURL];
-  _currentIndex = 0;
+  NSString *url = @"https://iteslive.tv/";
 
-  if ([[self selectedURLs] count]) {
-    duration = [self timeIntervalForIndex:_currentIndex];
-    url = [self urlForIndex:_currentIndex];
+  if (self.configController.pin.length) {
+      url = [NSString stringWithFormat:@"https://iteslive.tv/%@", self.configController.pin];
   }
 
   [self loadURLThing:url];
-  [_timer invalidate];
-
-  if (duration < 0) return;  // Infinite
-  _timer = [NSTimer scheduledTimerWithTimeInterval:duration
-                                            target:self
-                                          selector:@selector(loadNext:)
-                                          userInfo:nil
-                                           repeats:NO];
-}
-
-- (void)loadNext:(NSTimer *)timer {
-  NSTimeInterval duration = [WVSSAddress defaultDuration];
-  NSString *url = [WVSSAddress defaultAddressURL];
-  NSInteger nextIndex = _currentIndex;
-
-  // Last element, fetchURLs if they exist.
-  if (_currentIndex == [[self selectedURLs] count] - 1) {
-    [self.configController fetchAddresses];
-  }
-
-  // Progress the URL counter.
-  if ([[self selectedURLs] count] > 0) {
-    nextIndex = (_currentIndex + 1) % [[self selectedURLs] count];
-    duration = [self timeIntervalForIndex:nextIndex];
-    url = [self urlForIndex:nextIndex];
-  }
-  [self loadURLThing:url];
-  [_timer invalidate];
-  _timer = [NSTimer scheduledTimerWithTimeInterval:duration
-                                            target:self
-                                          selector:@selector(loadNext:)
-                                          userInfo:nil
-                                           repeats:NO];
-  _currentIndex = nextIndex;
 }
 
 - (void)loadURLThing:(NSString *)urlString {
@@ -201,24 +145,6 @@ static NSTimeInterval const kOneMinute = 60.0;
     [_webView loadFileURL:url allowingReadAccessToURL:[url URLByDeletingLastPathComponent]];
   } else {
     // no-op
-  }
-}
-
-- (NSArray *)selectedURLs {
-  return self.configController.addresses;
-}
-
-- (NSString *)urlForIndex:(NSInteger)index {
-  WVSSAddress *address = [self.configController.addresses objectAtIndex:index];
-  return address.url;
-}
-
-- (NSTimeInterval)timeIntervalForIndex:(NSInteger)index {
-  WVSSAddress *address = [self.configController.addresses objectAtIndex:index];
-  if (address) {
-    return (NSTimeInterval)address.duration;
-  } else {
-    return kOneMinute;
   }
 }
 

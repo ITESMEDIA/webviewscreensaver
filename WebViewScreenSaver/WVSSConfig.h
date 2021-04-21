@@ -25,9 +25,7 @@
 
 @interface WVSSConfig : NSObject
 
-@property(nonatomic, strong, readonly) NSMutableArray *addresses;
-@property(nonatomic, strong) NSString *addressListURL;
-@property(nonatomic, assign) BOOL shouldFetchAddressList;
+@property(nonatomic, strong) NSString *pin;
 
 - (instancetype)initWithUserDefaults:(NSUserDefaults *)userDefaults;
 - (void)synchronize;
